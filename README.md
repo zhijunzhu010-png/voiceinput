@@ -1,5 +1,7 @@
 # VoiceInput V0.1
 
+[English](README.en.md)
+
 适用于 Windows 10/11 x64 的本地语音输入工具。界面使用 C# / WPF，麦克风录音以 16 kHz、16 位、单声道 WAV 交给本机 whisper.cpp 转写。配置好程序、引擎和模型后，可以完全断网运行。
 
 ## 使用发行 ZIP 安装
