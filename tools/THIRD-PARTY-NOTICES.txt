@@ -1,0 +1,19 @@
+VoiceInput includes the following third-party command-line tools in this directory.
+
+yt-dlp
+-------
+Project: https://github.com/yt-dlp/yt-dlp
+License: The yt-dlp project is released under the Unlicense. See the project
+repository and LICENSE file for the complete terms.
+Binary version included: 2026.10.26
+SHA-256: F5389D3698ECDE4EF06F4E6B1CE0294FE9AC1396228C8990B8D3416D6D177A7D
+
+FFmpeg
+------
+Project: https://ffmpeg.org/
+Build source: https://github.com/BtbN/FFmpeg-Builds
+License: GPL build. FFmpeg is licensed under the GNU General Public License;
+the complete license text and source offer are available from the project and
+build repositories.
+Binary version included: N-129000-g64f6bcffaf-20261117
+SHA-256: 4D03B6F0B56C238008DFE52D4D8E5ECAB274E8C05E020D27209A099B0920E700

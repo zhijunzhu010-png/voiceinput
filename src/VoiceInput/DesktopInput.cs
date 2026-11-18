@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Windows;
 
 namespace VoiceInput;
 
@@ -29,7 +30,82 @@ internal static class DesktopInput
         foreach (int key in new[] { 0x10, 0x11, 0x12, 0x5B, 0x5C })
             if (GetAsyncKeyState(key) < 0) return false;
 
-        string normalized = text.Replace("\r\n", " ").Replace('\r', ' ').Replace('\n', ' ');
+        string normalized = NormalizeText(text);
+        if (normalized.Length == 0) return false;
+        if (TryPaste(target, normalized)) return true;
+
+        return SendUnicode(target, normalized);
+    }
+
+    internal static string NormalizeText(string text) =>
+        text.Replace("\r\n", " ").Replace('\r', ' ').Replace('\n', ' ');
+
+    private static bool TryPaste(InputTarget target, string text)
+    {
+        if (target != Capture()) return false;
+
+        IDataObject? original = null;
+        bool clipboardOwned = false;
+        uint clipboardSequence = 0;
+        try
+        {
+            original = Clipboard.GetDataObject();
+            Clipboard.SetText(text, TextDataFormat.UnicodeText);
+            clipboardOwned = true;
+            clipboardSequence = GetClipboardSequenceNumber();
+            if (target != Capture() || !SendPaste()) return false;
+            return true;
+        }
+        catch (ExternalException)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+        finally
+        {
+            if (clipboardOwned) RestoreClipboard(original, text, clipboardSequence);
+        }
+    }
+
+    private static void RestoreClipboard(IDataObject? original, string insertedText, uint ownedSequence)
+    {
+        try
+        {
+            if (ownedSequence == 0 || GetClipboardSequenceNumber() != ownedSequence ||
+                !Clipboard.ContainsText(TextDataFormat.UnicodeText) ||
+                Clipboard.GetText(TextDataFormat.UnicodeText) != insertedText)
+                return;
+
+            if (original is null)
+                Clipboard.Clear();
+            else
+                Clipboard.SetDataObject(original, true);
+        }
+        catch (ExternalException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+    }
+
+    private static bool SendPaste()
+    {
+        var events = new[]
+        {
+            CreateKeyEvent(0x11, 0),
+            CreateKeyEvent(0x56, 0),
+            CreateKeyEvent(0x56, 2),
+            CreateKeyEvent(0x11, 2),
+        };
+        return SendInput((uint)events.Length, events, Marshal.SizeOf<Input>()) == events.Length;
+    }
+
+    private static bool SendUnicode(InputTarget target, string normalized)
+    {
         var events = new Input[normalized.Length * 2];
         for (int i = 0; i < normalized.Length; i++)
         {
@@ -41,6 +117,9 @@ internal static class DesktopInput
         }
         return target == Capture() && SendInput((uint)events.Length, events, Marshal.SizeOf<Input>()) == events.Length;
     }
+
+    private static Input CreateKeyEvent(ushort virtualKey, uint flags) =>
+        new() { Type = 1, Data = new InputData { Key = new KeyInput { VirtualKey = virtualKey, Flags = flags } } };
 
     [StructLayout(LayoutKind.Sequential)]
     private struct Input { public uint Type; public InputData Data; }
@@ -88,6 +167,8 @@ internal static class DesktopInput
     private static extern bool GetGUIThreadInfo(uint thread, ref GuiThreadInfo info);
     [DllImport("user32.dll")]
     private static extern short GetAsyncKeyState(int key);
+    [DllImport("user32.dll")]
+    private static extern uint GetClipboardSequenceNumber();
     [DllImport("user32.dll", SetLastError = true)]
     private static extern uint SendInput(uint count, Input[] inputs, int size);
 }

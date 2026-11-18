@@ -6,3 +6,5 @@ engine-cpu/
 .vs/
 *.user
 *.zip
+/tools/ffmpeg.exe
+/tools/yt-dlp.exe

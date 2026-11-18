@@ -1,0 +1,93 @@
+namespace VoiceInput;
+
+internal static class InterfaceLanguage
+{
+    private static readonly Dictionary<string, (string English, string Traditional)> Translations = new()
+    {
+        ["界面语言"] = ("Interface language", "介面語言"),
+        ["说话，自动转成文字"] = ("Turn speech into text", "說話，自動轉成文字"),
+        ["录音结束后自动转写。"] = ("Transcription starts when you stop recording.", "錄音結束後自動轉錄。"),
+        ["开始录音"] = ("Start recording", "開始錄音"),
+        ["结束录音"] = ("Stop recording", "結束錄音"),
+        ["正在结束录音…"] = ("Stopping recording…", "正在結束錄音…"),
+        ["正在录音…"] = ("Recording…", "正在錄音…"),
+        ["快捷键 Ctrl + Shift + F9"] = ("Shortcut: Ctrl + Shift + F9", "快捷鍵 Ctrl + Shift + F9"),
+        ["识别结果（可编辑）"] = ("Transcript (editable)", "轉錄結果（可編輯）"),
+        ["复制结果"] = ("Copy result", "複製結果"),
+        ["清空"] = ("Clear", "清除"),
+        ["更多选项"] = ("More options", "更多選項"),
+        ["识别方式"] = ("Transcription provider", "轉錄服務"),
+        ["本地 Whisper"] = ("Local Whisper", "本機 Whisper"),
+        ["云端 OpenRouter"] = ("Cloud OpenRouter", "雲端 OpenRouter"),
+        ["OpenRouter API Key（仅云端使用，本机加密保存）"] = ("OpenRouter API key (cloud only, stored encrypted)", "OpenRouter API 金鑰（僅供雲端使用，本機加密儲存）"),
+        ["保存云端设置"] = ("Save cloud settings", "儲存雲端設定"),
+        ["OpenRouter 语音转写模型 ID"] = ("OpenRouter transcription model ID", "OpenRouter 語音轉錄模型 ID"),
+        ["公开视频链接（YouTube 或 B 站）"] = ("Public video link (YouTube or Bilibili)", "公開影片連結（YouTube 或 B 站）"),
+        ["开始转写"] = ("Transcribe link", "轉錄連結"),
+        ["取消转写"] = ("Cancel transcription", "取消轉錄"),
+        ["视频转写就绪"] = ("Ready to transcribe a link", "可開始轉錄影片連結"),
+        ["Whisper 引擎"] = ("Whisper engine", "Whisper 引擎"),
+        ["浏览"] = ("Browse", "瀏覽"),
+        ["多语种模型 (.bin)"] = ("Multilingual model (.bin)", "多語言模型 (.bin)"),
+        ["识别语言"] = ("Spoken language", "語音辨識語言"),
+        ["自动 / 中英混合"] = ("Auto / mixed Chinese and English", "自動／中英混合"),
+        ["中文"] = ("Chinese", "中文"),
+        ["英文"] = ("English", "英文"),
+        ["启用 NVIDIA CUDA"] = ("Enable NVIDIA CUDA", "啟用 NVIDIA CUDA"),
+        ["重新识别"] = ("Transcribe again", "重新轉錄"),
+        ["确认输入（3 秒）"] = ("Send text (3 sec)", "確認輸入（3 秒）"),
+        ["保存 TXT"] = ("Save TXT", "儲存 TXT"),
+        ["识别日志"] = ("Transcription log", "轉錄記錄"),
+        ["就绪"] = ("Ready", "就緒"),
+        ["读取配置失败：{0}"] = ("Could not load settings: {0}", "讀取設定失敗：{0}"),
+        ["无法读取云端配置，请重新填写 Key。"] = ("Could not load cloud settings. Re-enter your API key.", "無法讀取雲端設定，請重新輸入金鑰。"),
+        ["快捷键注册失败。可使用窗口按钮，或释放 Ctrl+Shift+F9 后重启。"] = ("Shortcut unavailable. Use the recording button, or free Ctrl+Shift+F9 and restart.", "無法註冊快捷鍵。請使用視窗按鈕，或釋放 Ctrl+Shift+F9 後重新啟動。"),
+        ["录音太短，请重试。"] = ("Recording too short. Try again.", "錄音太短，請重試。"),
+        ["本次没有识别到文字。"] = ("No speech was transcribed.", "這次沒有辨識到文字。"),
+        ["识别完成。你可以编辑或复制结果。"] = ("Transcription complete. Edit or copy the result.", "轉錄完成。你可以編輯或複製結果。"),
+        ["录音已中断。请查看识别日志。"] = ("Recording interrupted. Check the transcription log.", "錄音已中斷。請查看轉錄記錄。"),
+        ["录音或识别失败。请查看识别日志。"] = ("Recording or transcription failed. Check the transcription log.", "錄音或轉錄失敗。請查看轉錄記錄。"),
+        ["请填写 OpenRouter Key 和转写模型。"] = ("Enter your OpenRouter API key and transcription model.", "請輸入 OpenRouter 金鑰和轉錄模型。"),
+        ["正在上传录音并通过 OpenRouter 识别…"] = ("Uploading and transcribing with OpenRouter…", "正在上傳錄音並透過 OpenRouter 轉錄…"),
+        ["正在本地识别…"] = ("Transcribing locally…", "正在本機轉錄…"),
+        ["云端配置已保存，Key 已使用 Windows 加密。"] = ("Cloud settings saved. Windows encrypted the API key.", "已儲存雲端設定。金鑰已由 Windows 加密。"),
+        ["保存失败：{0}"] = ("Could not save: {0}", "儲存失敗：{0}"),
+        ["重新识别完成，请预览后确认输入。"] = ("Transcription updated. Review the result before sending.", "重新轉錄完成，請先預覽結果再確認輸入。"),
+        ["识别已取消。"] = ("Transcription canceled.", "已取消轉錄。"),
+        ["请切换到目标应用并点击输入框，{0} 秒后输入…"] = ("Focus the destination text field. Sending in {0} seconds…", "請切換至目標應用程式並點選輸入框，{0} 秒後輸入…"),
+        ["已发送文字输入，不会自动提交；请核对目标应用。"] = ("Text input sent. Review it in the destination app.", "已傳送文字，請在目標應用程式中核對。"),
+        ["未完成输入，请重新确认或复制后粘贴。"] = ("Could not send text. Try again or copy and paste it.", "無法傳送文字，請重試或複製後貼上。"),
+        ["请输入公开的 YouTube 或 B 站 http/https 链接。"] = ("Enter a public YouTube or Bilibili HTTP(S) link.", "請輸入公開的 YouTube 或 B 站 HTTP(S) 連結。"),
+        ["视频没有识别到文字。"] = ("No speech was transcribed from the video.", "影片沒有辨識到文字。"),
+        ["视频转写完成。结果可继续编辑。"] = ("Video transcription complete. You can edit the result.", "影片轉錄完成。你可以編輯結果。"),
+        ["视频转写已取消，临时文件已清理。"] = ("Video transcription canceled. Temporary files were cleaned up.", "已取消影片轉錄，並清理暫存檔。"),
+        ["正在取消视频转写…"] = ("Canceling video transcription…", "正在取消影片轉錄…"),
+        ["请选择 whisper-cli.exe。"] = ("Select whisper-cli.exe.", "請選取 whisper-cli.exe。"),
+        ["请选择本地多语种模型文件。"] = ("Select a local multilingual model file.", "請選取本機多語言模型檔。"),
+        ["已复制当前结果，可手动粘贴。"] = ("Result copied. You can paste it now.", "已複製結果，可以手動貼上。"),
+        ["剪贴板正被占用，请重试。"] = ("Clipboard is busy. Try again.", "剪貼簿使用中，請重試。"),
+        ["已清空识别结果。"] = ("Transcript cleared.", "已清除轉錄結果。"),
+        ["已保存当前结果。"] = ("Transcript saved.", "已儲存轉錄結果。"),
+        ["操作失败，请查看识别日志。"] = ("Operation failed. Check the transcription log.", "操作失敗，請查看轉錄記錄。"),
+        ["未找到 {0}，请将工具放入 tools 目录。"] = ("Could not find {0}. Place it in the tools folder.", "找不到 {0}，請將工具放入 tools 資料夾。"),
+        ["正在获取公开视频音频…"] = ("Fetching public video audio…", "正在取得公開影片音訊…"),
+        ["正在下载音频 {0:0.#}%"] = ("Downloading audio {0:0.#}%", "正在下載音訊 {0:0.#}%"),
+        ["正在转换为 Whisper 音频格式…"] = ("Converting audio for Whisper…", "正在轉換成 Whisper 音訊格式…"),
+        ["正在使用本地 Whisper 引擎识别…"] = ("Transcribing with local Whisper…", "正在使用本機 Whisper 引擎轉錄…"),
+        ["视频转写完成。"] = ("Video transcription complete.", "影片轉錄完成。"),
+        ["界面语言无法保存。"] = ("Could not save interface language.", "無法儲存介面語言。"),
+        ["Whisper 模型 (*.bin)"] = ("Whisper model (*.bin)", "Whisper 模型 (*.bin)"),
+        ["文本文件 (*.txt)"] = ("Text files (*.txt)", "文字檔 (*.txt)"),
+    };
+
+    public static string Text(string language, string text)
+    {
+        if (!Translations.TryGetValue(text, out var translation)) return text;
+        return language switch
+        {
+            "en" => translation.English,
+            "zh-TW" => translation.Traditional,
+            _ => text
+        };
+    }
+}

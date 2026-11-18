@@ -7,10 +7,10 @@ VoiceInput is an offline dictation app for Windows 10 and 11 (x64). The C# and W
 ## Get started
 
 1. If you have the distribution ZIP, extract it and open `app\VoiceInput.exe`. Keep the `app`, `engine-cpu`, and `models` folders together. The ZIP includes the .NET runtime, CPU engine, and multilingual tiny model. If you cloned this repository, follow the build instructions below.
-2. Open a text field and press **Ctrl+Shift+F9** to start recording. Press it again to stop. Recordings are limited to about two minutes.
-3. Keep focus in the same text field until transcription finishes. If text does not appear, use **Copy result** (`复制结果`) in VoiceInput and paste it manually. The app window also has a recording button for use without the global shortcut.
+2. Use the recording button or **Ctrl+Shift+F9** to start recording, then use it again to stop.
+3. Review, edit, or copy the transcript. Open **More options** to send the text to another app.
 
-The app UI is in Chinese. The language choices are Auto / mixed Chinese and English (`自动 / 中英混合`), Chinese (`中文`), and English (`英文`). Auto detects the primary language. A multilingual model can transcribe both languages in one recording, with accuracy depending on the model, audio quality, and language switching. Use a multilingual model such as `ggml-tiny.bin`, `ggml-base.bin`, or `ggml-small.bin`. Models with `.en` in their names are English-only. [Whisper models](https://huggingface.co/ggerganov/whisper.cpp/tree/main)
+The interface-language dropdown offers English, Simplified Chinese, and Traditional Chinese. Set the spoken language separately under **More options**. Auto detects the primary spoken language. A multilingual model can transcribe both languages in one recording, with accuracy depending on the model, audio quality, and language switching. Use a multilingual model such as `ggml-tiny.bin`, `ggml-base.bin`, or `ggml-small.bin`. Models with `.en` in their names are English-only. [Whisper models](https://huggingface.co/ggerganov/whisper.cpp/tree/main)
 
 ## Build from source
 
