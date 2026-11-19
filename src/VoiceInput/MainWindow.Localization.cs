@@ -12,6 +12,15 @@ public partial class MainWindow
 
     private static readonly Dictionary<string, string> InterfaceResources = new()
     {
+        ["VoicePageTitle"] = "语音转文字",
+        ["MediaPageTitle"] = "链接及文件转文字",
+        ["ImportMedia"] = "导入文件",
+        ["ForceAudio"] = "从音频识别",
+        ["TraditionalOutput"] = "输出繁体中文",
+        ["ProtectedTerms"] = "保留原字形的专名（用 | 分隔）",
+        ["UseCandidate"] = "查看新结果",
+        ["RawResult"] = "查看原始转写",
+        ["SaveSrt"] = "保存 SRT",
         ["DisplayLanguage"] = "界面语言",
         ["Heading"] = "说话，自动转成文字",
         ["RecordingHelp"] = "录音结束后自动转写。",
@@ -86,6 +95,10 @@ public partial class MainWindow
             Resources[key] = T(text);
 
         UpdateRecordLabel();
+        MediaSegments.Columns[0].Header = T("开始时间");
+        MediaSegments.Columns[1].Header = T("结束时间");
+        MediaSegments.Columns[2].Header = T("字幕正文");
+        UpdateElapsed();
         Status.Text = string.Format(T(status.Template), status.Arguments);
         VideoStatus.Text = string.Format(T(videoStatus.Template), videoStatus.Arguments);
     }
@@ -107,8 +120,11 @@ public partial class MainWindow
 
     private void ShowOperationError(Exception error, bool video = false)
     {
-        log = error.ToString();
-        LogButton.IsEnabled = true;
+        if (!video)
+        {
+            log += $"{voicePhaseName} · {error.GetType().Name}{Environment.NewLine}";
+            LogButton.IsEnabled = true;
+        }
         if (video && error is FileNotFoundException missing &&
             Path.GetFileName(missing.FileName) is ("yt-dlp.exe" or "ffmpeg.exe") and var tool)
         {
@@ -117,9 +133,12 @@ public partial class MainWindow
         }
 
         string message = error.Message is "请选择 whisper-cli.exe。" or "请选择本地多语种模型文件。" or
-            "请填写 OpenRouter Key 和转写模型。" or "录音太短，请重试。"
+            "请填写 OpenRouter Key 和转写模型。" or "录音太短，请重试。" or
+            "无法访问链接，请检查网络或视频访问权限。" or
+            "音频下载失败，请检查网络或确认视频提供独立音轨。" or "未找到可转写的音频文件。" or
+            "无法读取音轨，请检查文件格式或文件是否损坏。" or "没有识别到可用字幕。"
             ? error.Message : "操作失败，请查看识别日志。";
-        if (video) SetVideoStatus(message);
+        if (video) SetVideoStatus(message == "操作失败，请查看识别日志。" ? "转写失败，请检查设置后重试。" : message);
         else SetStatus(message);
     }
 }

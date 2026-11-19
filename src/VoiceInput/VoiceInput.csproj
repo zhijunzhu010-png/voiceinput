@@ -5,10 +5,12 @@
     <UseWPF>true</UseWPF>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="NAudio.WinMM" Version="2.2.1" />
+    <EmbeddedResource Include="ChineseData/*Characters.txt;ChineseData/*Phrases.txt"/>
+    <None Update="ChineseData/LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"/>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\tools\**\*"

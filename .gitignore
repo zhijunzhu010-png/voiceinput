@@ -8,3 +8,5 @@ engine-cpu/
 *.zip
 /tools/ffmpeg.exe
 /tools/yt-dlp.exe
+/.dotnet-home/
+/dist/VoiceInput-V0.2-PRD-win-x64/

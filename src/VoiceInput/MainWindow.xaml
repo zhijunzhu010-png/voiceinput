@@ -1,10 +1,9 @@
 <Window x:Class="VoiceInput.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="VoiceInput" Width="660" Height="710" MinWidth="420" MinHeight="450"
+        Title="VoiceInput" Width="820" Height="710" MinWidth="580" MinHeight="450"
         WindowStartupLocation="CenterScreen" FontSize="14">
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Margin="24">
-            <DockPanel Margin="0,0,0,20">
+    <DockPanel Margin="24">
+            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,20">
                 <StackPanel DockPanel.Dock="Right" Margin="12,0,0,0">
                     <Label Padding="0,0,0,4" Target="{Binding ElementName=InterfaceLanguagePicker}" Content="{DynamicResource DisplayLanguage}"/>
                     <ComboBox x:Name="InterfaceLanguagePicker" MinWidth="122">
@@ -15,6 +14,16 @@
                 </StackPanel>
                 <TextBlock Text="VoiceInput" FontSize="21" FontWeight="SemiBold" VerticalAlignment="Center"/>
             </DockPanel>
+        <StackPanel DockPanel.Dock="Left" Width="154" Margin="0,0,16,0">
+            <RadioButton x:Name="VoiceNavigation" GroupName="Pages" IsChecked="True" Margin="0,0,0,10"
+                         Checked="Navigate" Content="{DynamicResource VoicePageTitle}"/>
+            <RadioButton x:Name="MediaNavigation" GroupName="Pages" Checked="Navigate">
+                <TextBlock Text="{DynamicResource MediaPageTitle}" TextWrapping="Wrap" Width="125"/>
+            </RadioButton>
+        </StackPanel>
+        <Grid>
+            <ScrollViewer x:Name="VoicePage" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
             <TextBlock Text="{DynamicResource Heading}" FontSize="23" FontWeight="SemiBold" TextWrapping="Wrap"/>
             <TextBlock Text="{DynamicResource RecordingHelp}" Margin="0,6,0,14" TextWrapping="Wrap"/>
             <Border Padding="12" CornerRadius="12" BorderThickness="1"
@@ -49,16 +58,12 @@
                 </StackPanel>
             </Border>
             <TextBlock x:Name="Status" Margin="0,8,0,12" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
-            <Label Target="{Binding ElementName=VideoUrl}" Content="{DynamicResource VideoLink}"/>
-            <DockPanel Margin="0,0,0,5">
-                <Button x:Name="TranscribeButton" DockPanel.Dock="Right" Padding="12,3" Click="StartVideoTranscription" Content="{DynamicResource StartVideo}"/>
-                <TextBox x:Name="VideoUrl" Margin="0,0,8,0" VerticalContentAlignment="Center"/>
-            </DockPanel>
-            <DockPanel Margin="0,0,0,8">
-                <Button x:Name="CancelVideoButton" Visibility="Collapsed" DockPanel.Dock="Right" Padding="12,3" IsEnabled="False" Click="CancelVideoTranscription" Content="{DynamicResource CancelVideo}"/>
-                <ProgressBar x:Name="TranscriptionProgressBar" Visibility="Collapsed" Height="18" Margin="0,0,8,0" Minimum="0" Maximum="100" Value="0" VerticalAlignment="Center"/>
-            </DockPanel>
-            <TextBlock x:Name="VideoStatus" Margin="0,0,0,8" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+            <TextBlock x:Name="VoiceElapsed" Margin="0,0,0,6"/>
+            <WrapPanel Margin="0,0,0,6">
+                <Button x:Name="VoiceCancel" Click="CancelVoice" Visibility="Collapsed" Content="{DynamicResource CancelVideo}"/>
+                <Button x:Name="VoiceCandidateButton" Click="UseVoiceCandidate" Visibility="Collapsed" Content="{DynamicResource UseCandidate}"/>
+                <Button x:Name="VoiceRawButton" Click="ShowRawVoice" Visibility="Collapsed" Content="{DynamicResource RawResult}"/>
+            </WrapPanel>
             <Label Target="{Binding ElementName=Result}" Content="{DynamicResource ResultTitle}"/>
             <TextBox x:Name="Result" MinHeight="118" MaxHeight="280" TextWrapping="Wrap"
                      AcceptsReturn="True" VerticalScrollBarVisibility="Auto"/>
@@ -93,13 +98,16 @@
                     </DockPanel>
                     <WrapPanel Margin="0,12">
                         <Label Target="{Binding ElementName=LanguagePicker}" Content="{DynamicResource SpokenLanguage}"/>
-                        <ComboBox x:Name="LanguagePicker" MinWidth="155" SelectedIndex="0" VerticalContentAlignment="Center">
+                        <ComboBox x:Name="LanguagePicker" MinWidth="155" SelectedIndex="1" VerticalContentAlignment="Center">
                             <ComboBoxItem Content="{DynamicResource AutoLanguage}" Tag="auto"/>
                             <ComboBoxItem Content="{DynamicResource ChineseLanguage}" Tag="zh"/>
                             <ComboBoxItem Content="{DynamicResource EnglishLanguage}" Tag="en"/>
                         </ComboBox>
                         <CheckBox x:Name="UseGpu" Margin="14,0,0,0" VerticalAlignment="Center" Content="{DynamicResource UseCuda}"/>
                     </WrapPanel>
+                    <CheckBox x:Name="TraditionalOutput" Margin="0,0,0,6" Content="{DynamicResource TraditionalOutput}"/>
+                    <Label Content="{DynamicResource ProtectedTerms}"/>
+                    <TextBox x:Name="ProtectedTerms" Margin="0,0,0,8"/>
                     <WrapPanel>
                         <Button x:Name="RetryButton" Margin="8,0" Padding="12,5" IsEnabled="False" Click="RetryRecognition" Content="{DynamicResource Retry}"/>
                         <Button x:Name="ConfirmButton" Margin="8,0" Padding="12,5" IsEnabled="False" Click="ConfirmInput" Content="{DynamicResource Send}"/>
@@ -108,6 +116,58 @@
                     </WrapPanel>
                 </StackPanel>
             </Expander>
-        </StackPanel>
-    </ScrollViewer>
+                </StackPanel>
+            </ScrollViewer>
+            <ScrollViewer x:Name="MediaPage" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                <StackPanel>
+                    <TextBlock FontSize="23" FontWeight="SemiBold" Text="{DynamicResource MediaPageTitle}"/>
+            <Label Target="{Binding ElementName=VideoUrl}" Content="{DynamicResource VideoLink}"/>
+            <DockPanel Margin="0,0,0,5">
+                <Button x:Name="TranscribeButton" DockPanel.Dock="Right" Padding="12,3" Click="StartVideoTranscription" Content="{DynamicResource StartVideo}"/>
+                <TextBox x:Name="VideoUrl" Margin="0,0,8,0" VerticalContentAlignment="Center"/>
+            </DockPanel>
+            <DockPanel Margin="0,0,0,8">
+                <Button x:Name="CancelVideoButton" Visibility="Collapsed" DockPanel.Dock="Right" Padding="12,3" IsEnabled="False" Click="CancelVideoTranscription" Content="{DynamicResource CancelVideo}"/>
+                <ProgressBar x:Name="TranscriptionProgressBar" Visibility="Collapsed" Height="18" Margin="0,0,8,0" Minimum="0" Maximum="100" Value="0" VerticalAlignment="Center"/>
+            </DockPanel>
+            <WrapPanel Margin="0,0,0,8">
+                <Button x:Name="ImportMediaButton" Padding="8,4" Click="ImportMedia" Content="{DynamicResource ImportMedia}"/>
+                <Button x:Name="RetryMediaButton" Padding="8,4" Margin="6,0" Click="RetryMedia" Content="{DynamicResource Retry}"/>
+                <Button x:Name="ForceAudioButton" Padding="8,4" Click="ForceMediaAudio" Content="{DynamicResource ForceAudio}"/>
+            </WrapPanel>
+            <TextBlock x:Name="MediaFileLabel" TextWrapping="Wrap" Margin="0,0,0,6"/>
+            <WrapPanel Margin="0,0,0,6">
+                <Label Content="{DynamicResource SpokenLanguage}"/>
+                <ComboBox x:Name="MediaLanguage" MinWidth="120" SelectedIndex="1">
+                    <ComboBoxItem Content="{DynamicResource AutoLanguage}" Tag="auto"/>
+                    <ComboBoxItem Content="{DynamicResource ChineseLanguage}" Tag="zh"/>
+                    <ComboBoxItem Content="{DynamicResource EnglishLanguage}" Tag="en"/>
+                </ComboBox>
+                <CheckBox x:Name="MediaTraditional" VerticalAlignment="Center" Margin="8,0" Content="{DynamicResource TraditionalOutput}"/>
+            </WrapPanel>
+            <TextBlock x:Name="VideoStatus" Margin="0,0,0,8" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                    <TextBlock x:Name="MediaElapsed" Margin="0,0,0,6"/>
+                    <WrapPanel>
+                        <Button x:Name="MediaCandidateButton" Click="UseMediaCandidate" Visibility="Collapsed" Content="{DynamicResource UseCandidate}"/>
+                        <Button x:Name="MediaRawButton" Click="ShowRawMedia" Visibility="Collapsed" Content="{DynamicResource RawResult}"/>
+                    </WrapPanel>
+                    <TextBlock Margin="0,8,0,4" Text="{DynamicResource ResultTitle}"/>
+                    <DataGrid x:Name="MediaSegments" AutoGenerateColumns="False" CanUserAddRows="False"
+                              CanUserDeleteRows="False" MaxHeight="330" MinHeight="150" BeginningEdit="MediaEditing">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Binding="{Binding StartLabel}" IsReadOnly="True" Width="110"/>
+                            <DataGridTextColumn Binding="{Binding EndLabel}" IsReadOnly="True" Width="110"/>
+                            <DataGridTextColumn Binding="{Binding Text, UpdateSourceTrigger=PropertyChanged}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <WrapPanel HorizontalAlignment="Right" Margin="0,8,0,0">
+                        <Button x:Name="CopyMediaButton" Padding="9,4" Click="CopyMedia" Content="{DynamicResource Copy}"/>
+                        <Button x:Name="SaveMediaTxtButton" Padding="9,4" Margin="6,0" Click="SaveMediaTxt" Content="{DynamicResource SaveText}"/>
+                        <Button x:Name="SaveMediaSrtButton" Padding="9,4" Click="SaveMediaSrt" Content="{DynamicResource SaveSrt}"/>
+                        <Button x:Name="MediaLogButton" Padding="9,4" Margin="6,0" Click="ShowMediaLog" Content="{DynamicResource Log}"/>
+                    </WrapPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </DockPanel>
 </Window>

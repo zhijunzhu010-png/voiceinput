@@ -38,7 +38,7 @@ public class VideoTranscriberTests
         CollectionAssert.Contains(args, "--no-playlist");
         CollectionAssert.Contains(args, "--newline");
         CollectionAssert.Contains(args, "-f");
-        CollectionAssert.Contains(args, "bestaudio/best");
+        CollectionAssert.Contains(args, "bestaudio");
         CollectionAssert.Contains(args, "C:\\temp\\download.%(ext)s");
     }
 

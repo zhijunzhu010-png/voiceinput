@@ -1,12 +1,11 @@
-# 视频链接转写
+# 链接及文件转文字
 
-VoiceInput 支持直接转写公开的 YouTube 和 B 站视频，不需要先打开视频网页。
+1. 在 VoiceInput 左侧选择「链接及文件转文字」。粘贴公开的 YouTube 或 B 站链接，或点「导入文件」选择本地音视频，再点「开始转写」。
+2. 链接先检查与识别语言匹配的字幕，优先采用人工字幕，其次尝试平台自动字幕。可用字幕会直接进入编辑区。选择「从音频识别」可以跳过字幕。字幕不可用时，应用会尝试下载独立音轨再用本地 Whisper 识别。
+3. 本地文件直接进入音轨准备和识别。文件能否转写取决于是否包含可解码音轨，常用扩展名包括 WAV、MP3、M4A、FLAC、MP4、MKV 和 WebM。
+4. 转写面板显示阶段、总耗时和当前阶段耗时。下载提供可计算的进度后会显示百分比。失败时可根据提示重试；已下载并完整保存的音频可在本次运行期间复用。
+5. 双击结果表格的字幕正文进行编辑。可复制或保存 TXT，也可将同一份稿件导出为带时间轴的 SRT。两页可以分别取消任务。
 
-1. 启动应用，在“公开视频链接”框粘贴 `https://www.youtube.com/...`、`https://youtu.be/...`、`https://www.bilibili.com/...` 或 `https://b23.tv/...` 链接。
-2. 点击“开始转写”，应用会依次下载音频、转换为 Whisper 音频格式并进行本地识别。
-3. 识别结果可以直接编辑、删除和修改，然后复制当前内容、清空文字或保存为 TXT。
-4. 转写过程中可以点击“取消转写”；下载器、转换器会被终止，本次临时目录会在任务结束时清理。
+链接需要公开可访问，并由平台公开提供字幕或独立音轨。当前支持单个链接和单个本地文件。切页期间保留草稿和后台任务，程序退出时会清理会话临时文件。
 
-首版只处理公开可访问内容，不支持登录、付费或 DRM 内容。发布包必须保留 `tools` 目录，其中包含 `yt-dlp.exe`、`ffmpeg.exe` 和 `THIRD-PARTY-NOTICES.txt`。
-
-从源码构建时，请先从 [yt-dlp 官方发布页](https://github.com/yt-dlp/yt-dlp/releases) 和 [FFmpeg Windows 构建发布页](https://github.com/BtbN/FFmpeg-Builds/releases) 获取对应的 Windows 可执行文件，放到仓库根目录的 `tools` 下，再构建应用。构建会把工具复制到程序输出目录。
+发布包内 `app\tools` 包含 yt-dlp、FFmpeg 和第三方声明。从源码构建时，把官方 Windows 可执行文件放入仓库根目录的 `tools`，构建会复制到应用目录。 [yt-dlp 官方发布](https://github.com/yt-dlp/yt-dlp/releases) · [FFmpeg Windows 构建](https://github.com/BtbN/FFmpeg-Builds/releases)

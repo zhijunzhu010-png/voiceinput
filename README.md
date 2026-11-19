@@ -1,4 +1,4 @@
-# VoiceInput V0.1
+# VoiceInput V0.2
 
 [English](README.en.md)
 
@@ -11,7 +11,11 @@
 3. 如需提高识别质量，可另行下载 [ggml-base.bin](https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin) 或 [ggml-small.bin](https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin)，在界面中选择模型。中英及混合模式使用多语种模型。文件名带 `.en` 的模型仅适用于英文。
 4. 要启用 NVIDIA 加速，请按安装教程配置独立的 CUDA 引擎。可在联网电脑备齐所需文件，再复制到离线电脑。
 5. 点击“开始录音”或按 **Ctrl+Shift+F9**，讲完后主动结束录音。在结果区预览、编辑或复制文字，也可以打开“更多选项”后选择“确认输入”。
-6. 使用顶部下拉栏切换 English、简体中文或繁體中文。“更多选项”中的识别语言独立设置。“自动 / 中英混合”由 Whisper 检测主要语言，效果受模型、音质和切换频率影响。
+6. 使用顶部下拉栏切换 English、简体中文或繁體中文。新配置默认识别普通话、输出简体。可独立设置识别语言和输出繁简，并用 `|` 分隔需要保留原字形的专名。“自动 / 中英混合”由 Whisper 检测主要语言。
+
+从左侧进入「链接及文件转文字」处理公开链接或本地音视频。两个页面各自保留输入框、草稿与任务。切页时任务继续运行。识别完成时如果已有未保存编辑，可先预览新结果，再决定是否替换草稿。操作与导出见 [链接与文件转写](docs/VIDEO_TRANSCRIPTION.md)。
+
+繁简输出使用随程序嵌入的 OpenCC 1.1.9 字符及词组词典。转换离线执行，数据许可证随程序发布。 [OpenCC 1.1.9 源码](https://github.com/BYVoid/OpenCC/tree/ver.1.1.9)
 
 ## 自动输入与复制
 

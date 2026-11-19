@@ -1,4 +1,6 @@
 using System.ComponentModel;
+using System.Diagnostics;
+using System.Windows.Threading;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -19,8 +21,17 @@ public partial class MainWindow : Window
     private CancellationTokenSource? cancellation;
     private CancellationTokenSource? videoCancellation;
     private bool busy, videoBusy, stopping, closePending, registered;
-    private InputTarget target;
     private string log = "";
+    private readonly LocalRecognitionQueue recognitionQueue = new();
+    private readonly DispatcherTimer elapsedTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
+    private readonly Stopwatch voiceElapsed = new();
+    private readonly Stopwatch voicePhase = new();
+    private string voicePhaseName = "";
+    private string rawVoice = "";
+    private string? voiceCandidate;
+    private long voiceRevision;
+    private bool voiceDirty;
+    private bool updatingVoice;
     private string? recordingFolder;
     private bool confirming;
     private static readonly string CloudSettingsPath = Path.ChangeExtension(SettingsPath, "cloud.json");
@@ -35,18 +46,21 @@ public partial class MainWindow : Window
         if (File.Exists(bundledModel)) ModelPath.Text = bundledModel;
         InitializeInterfaceLanguage();
         Result.TextChanged += ResultChanged;
-        UpdateResultActions();
+        InitializePages();
+        UpdateOperationState();
         try
         {
             if (File.Exists(SettingsPath) && JsonSerializer.Deserialize<RecognitionOptions>(File.ReadAllText(SettingsPath)) is { } settings)
             {
-                EnginePath.Text = settings.Engine;
-                ModelPath.Text = settings.Model;
+                if (File.Exists(settings.Engine)) EnginePath.Text = settings.Engine;
+                if (File.Exists(settings.Model)) ModelPath.Text = settings.Model;
                 LanguagePicker.SelectedIndex = settings.Language switch { "zh" => 1, "en" => 2, _ => 0 };
                 UseGpu.IsChecked = settings.Gpu;
+                TraditionalOutput.IsChecked = settings.Traditional;
+                ProtectedTerms.Text = settings.ProtectedTerms ?? "";
             }
         }
-        catch (Exception ex) { SetStatus("读取配置失败：{0}", ex.Message); }
+        catch (Exception ex) { SetStatus("读取配置失败：{0}", ex.GetType().Name); }
         try
         {
             if (File.Exists(CloudSettingsPath) && JsonSerializer.Deserialize<CloudSettings>(File.ReadAllText(CloudSettingsPath)) is { } cloud)
@@ -82,16 +96,13 @@ public partial class MainWindow : Window
 
     private void Toggle(bool fromHotkey)
     {
-        if (closePending || videoBusy || confirming) return;
+        if (closePending || confirming) return;
         if (!busy)
         {
-            target = fromHotkey ? DesktopInput.Capture() : default;
-            if (target.Window == source?.Handle) target = default;
             _ = RunSessionAsync();
         }
         else if (capture is not null && !stopping)
         {
-            if (!fromHotkey || target != DesktopInput.Capture()) target = default;
             StopCapture();
         }
     }
@@ -101,11 +112,11 @@ public partial class MainWindow : Window
         if (capture is null || stopping) return;
         stopping = true;
         UpdateOperationState();
-        SetStatus("正在结束录音…");
+        SetVoicePhase("正在结束录音…");
         try { capture.Stop(); }
         catch (Exception ex)
         {
-            log = ex.ToString();
+            log += $"{ex.GetType().Name}{Environment.NewLine}";
             cancellation?.Cancel();
         }
     }
@@ -120,32 +131,32 @@ public partial class MainWindow : Window
         using var session = new CancellationTokenSource();
         cancellation = session;
         string? folder = null;
+        var revision = voiceRevision;
+        BeginVoiceTiming();
         try
         {
-            ValidateRecognition();
-            ClearRecording();
+            var request = ReadVoiceRequest();
             folder = Directory.CreateTempSubdirectory("VoiceInput-").FullName;
-            recordingFolder = folder;
             string wav = Path.Combine(folder, "recording.wav");
             capture = new AudioCapture(wav);
             capture.Start();
             UpdateOperationState();
-            SetStatus("正在录音…");
+            SetVoicePhase("正在录音…");
             await capture.Completion.WaitAsync(session.Token);
             capture.Dispose();
             capture = null;
-            RecordButton.IsEnabled = false;
+            UpdateOperationState();
             if (new FileInfo(wav).Length < 3244) throw new InvalidOperationException("录音太短，请重试。");
 
-            var result = await RecognizeAsync(wav, session.Token);
-            log = result.Log;
-            if (string.IsNullOrWhiteSpace(result.Text))
+            ClearRecording();
+            recordingFolder = folder;
+            var result = await RecognizeAsync(wav, request, session.Token);
+            if (string.IsNullOrWhiteSpace(result))
             {
                 SetStatus("本次没有识别到文字。");
                 return;
             }
-            Result.Text = result.Text;
-            SetStatus("识别完成。你可以编辑或复制结果。");
+            AcceptVoice(result, request.Options, revision);
         }
         catch (OperationCanceledException)
         {
@@ -157,8 +168,10 @@ public partial class MainWindow : Window
         }
         finally
         {
-            try { capture?.Dispose(); } catch (Exception ex) { log += $"\n释放麦克风失败：{ex.Message}"; }
+            try { capture?.Dispose(); } catch (Exception ex) { log += $"\n释放麦克风失败 · {ex.GetType().Name}"; }
             capture = null;
+            if (folder is not null && folder != recordingFolder) DeleteTemporaryFolder(folder);
+            FinishVoiceTiming();
             cancellation = null;
             busy = false;
             LogButton.IsEnabled = log.Length != 0;
@@ -167,30 +180,34 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ValidateRecognition()
+    private sealed record VoiceRequest(RecognitionOptions Options, bool Cloud, string Key, string Model);
+
+    private VoiceRequest ReadVoiceRequest()
     {
-        if (ProviderPicker.SelectedIndex == 1)
-        {
-            if (string.IsNullOrWhiteSpace(ApiKey.Password) || string.IsNullOrWhiteSpace(CloudModel.Text))
-                throw new InvalidOperationException("请填写 OpenRouter Key 和转写模型。");
-        }
-        else ReadOptions();
+        bool cloud = ProviderPicker.SelectedIndex == 1;
+        var options = ReadOptions(validatePaths: !cloud);
+        if (cloud && (string.IsNullOrWhiteSpace(ApiKey.Password) || string.IsNullOrWhiteSpace(CloudModel.Text)))
+            throw new InvalidOperationException("请填写 OpenRouter Key 和转写模型。");
+        return new(options, cloud, ApiKey.Password, CloudModel.Text);
     }
 
-    private async Task<(string Text, string Log)> RecognizeAsync(string wav, CancellationToken token)
+    private async Task<string> RecognizeAsync(string wav, VoiceRequest request, CancellationToken token)
     {
-        ValidateRecognition();
-        if (ProviderPicker.SelectedIndex == 1)
+        SaveSettings(request.Options);
+        if (request.Cloud)
         {
-            SetStatus("正在上传录音并通过 OpenRouter 识别…");
+            SetVoicePhase("正在上传录音并通过 OpenRouter 识别…");
             SaveCloudConfiguration();
-            string language = (string)((ComboBoxItem)LanguagePicker.SelectedItem).Tag;
-            return (await CloudRecognition.RunAsync(ApiKey.Password, CloudModel.Text, wav, language, token), "OpenRouter 转写完成。");
+            return await CloudRecognition.RunAsync(request.Key, request.Model, wav, request.Options.Language, token);
         }
-        SetStatus("正在本地识别…");
-        var settings = ReadOptions();
-        SaveSettings(settings);
-        return await WhisperEngine.RunAsync(settings, wav, token);
+
+        return await recognitionQueue.RunAsync(voice: true, () => SetVoicePhase("正在等待本地识别…"), async () =>
+        {
+            SetVoicePhase("正在本地识别…");
+            var result = await WhisperEngine.RunAsync(request.Options, wav, token);
+            log += result.Log + Environment.NewLine;
+            return result.Text;
+        }, token);
     }
 
     private void SaveCloudConfiguration()
@@ -208,32 +225,36 @@ public partial class MainWindow : Window
 
     private async void RetryRecognition(object sender, RoutedEventArgs e)
     {
-        if (busy || videoBusy || confirming || recordingFolder is null) return;
+        if (busy || confirming || recordingFolder is null) return;
         busy = true;
         using var session = new CancellationTokenSource();
         cancellation = session;
         UpdateOperationState();
+        long revision = voiceRevision;
+        log = "";
+        BeginVoiceTiming();
         try
         {
-            var result = await RecognizeAsync(Path.Combine(recordingFolder, "recording.wav"), session.Token);
-            Result.Text = result.Text;
-            log = result.Log;
-            SetStatus("重新识别完成，请预览后确认输入。");
+            var request = ReadVoiceRequest();
+            var result = await RecognizeAsync(Path.Combine(recordingFolder, "recording.wav"), request, session.Token);
+            if (string.IsNullOrWhiteSpace(result)) SetStatus("本次没有识别到文字。");
+            else AcceptVoice(result, request.Options, revision);
         }
         catch (OperationCanceledException) { SetStatus("识别已取消。"); }
         catch (Exception ex) { ShowOperationError(ex); }
         finally
         {
+            FinishVoiceTiming();
             busy = false;
             cancellation = null;
             UpdateOperationState();
-            if (closePending) Close();
+            if (closePending) _ = Dispatcher.BeginInvoke(new Action(Close));
         }
     }
 
     private async void ConfirmInput(object sender, RoutedEventArgs e)
     {
-        if (busy || videoBusy || confirming || string.IsNullOrWhiteSpace(Result.Text)) return;
+        if (busy || confirming || string.IsNullOrWhiteSpace(Result.Text)) return;
         string text = Result.Text;
         confirming = true;
         UpdateOperationState();
@@ -255,101 +276,17 @@ public partial class MainWindow : Window
 
     private void ClearRecording()
     {
-        if (recordingFolder is null) return;
-        try { Directory.Delete(recordingFolder, true); recordingFolder = null; }
-        catch (IOException ex) { log += $"\n录音清理失败：{ex.Message}"; }
+        DeleteTemporaryFolder(recordingFolder);
+        recordingFolder = null;
     }
 
-    private async void StartVideoTranscription(object sender, RoutedEventArgs e)
-    {
-        if (busy || videoBusy || closePending || confirming) return;
-        if (!VideoSource.TryParsePublicUri(VideoUrl.Text, out Uri? uri))
-        {
-            SetVideoStatus("请输入公开的 YouTube 或 B 站 http/https 链接。");
-            return;
-        }
-
-        RecognitionOptions settings;
-        try
-        {
-            settings = ReadOptions();
-            SaveSettings(settings);
-        }
-        catch (Exception ex)
-        {
-            ShowOperationError(ex, video: true);
-            return;
-        }
-
-        videoBusy = true;
-        videoCancellation = new CancellationTokenSource();
-        TranscriptionProgressBar.IsIndeterminate = true;
-        TranscriptionProgressBar.Value = 0;
-        UpdateOperationState();
-        var progress = new Progress<TranscriptionProgress>(value =>
-        {
-            if (!videoBusy || videoCancellation?.IsCancellationRequested != false) return;
-            if (value.Stage == "下载视频音频" && value.Percent.HasValue &&
-                value.Message != "正在获取公开视频音频…")
-                SetVideoStatus("正在下载音频 {0:0.#}%", value.Percent.Value);
-            else
-                SetVideoStatus(value.Message);
-            TranscriptionProgressBar.IsIndeterminate = value.Percent is null;
-            if (value.Percent is double percent) TranscriptionProgressBar.Value = Math.Clamp(percent, 0, 100);
-        });
-        try
-        {
-            var result = await VideoTranscriber.TranscribeAsync(uri!, settings, FindToolsDirectory(), progress, videoCancellation.Token);
-            log = result.Log;
-            if (string.IsNullOrWhiteSpace(result.Text)) SetVideoStatus("视频没有识别到文字。");
-            else
-            {
-                Result.Text = result.Text;
-                SetVideoStatus("视频转写完成。结果可继续编辑。");
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            if (!closePending) SetVideoStatus("视频转写已取消，临时文件已清理。");
-        }
-        catch (Exception ex)
-        {
-            ShowOperationError(ex, video: true);
-        }
-        finally
-        {
-            videoCancellation.Dispose();
-            videoCancellation = null;
-            videoBusy = false;
-            LogButton.IsEnabled = log.Length != 0;
-            UpdateOperationState();
-            if (closePending) _ = Dispatcher.BeginInvoke(new Action(Close));
-        }
-    }
-
-    private void CancelVideoTranscription(object sender, RoutedEventArgs e)
-    {
-        if (!videoBusy) return;
-        SetVideoStatus("正在取消视频转写…");
-        videoCancellation?.Cancel();
-    }
-
-    private static string FindToolsDirectory()
-    {
-        string bundled = Path.Combine(AppContext.BaseDirectory, "tools");
-        if (File.Exists(Path.Combine(bundled, "yt-dlp.exe")) || File.Exists(Path.Combine(bundled, "ffmpeg.exe"))) return bundled;
-        return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "..", "tools"));
-    }
-
-    private RecognitionOptions ReadOptions()
+    private RecognitionOptions ReadOptions(bool validatePaths = true)
     {
         string engine = EnginePath.Text.Trim();
         string model = ModelPath.Text.Trim();
-        if (!File.Exists(engine) || !string.Equals(Path.GetFileName(engine), "whisper-cli.exe", StringComparison.OrdinalIgnoreCase))
-            throw new FileNotFoundException("请选择 whisper-cli.exe。", engine);
-        if (!File.Exists(model)) throw new FileNotFoundException("请选择本地多语种模型文件。", model);
-        return new(Path.GetFullPath(engine), Path.GetFullPath(model),
-            (string)((ComboBoxItem)LanguagePicker.SelectedItem).Tag, UseGpu.IsChecked == true);
+        var options = new RecognitionOptions(engine, model, (string)((ComboBoxItem)LanguagePicker.SelectedItem).Tag,
+            UseGpu.IsChecked == true, TraditionalOutput.IsChecked == true, ProtectedTerms.Text);
+        return validatePaths ? ValidateLocalOptions(options) : options;
     }
 
     private static void SaveSettings(RecognitionOptions settings)
@@ -367,14 +304,22 @@ public partial class MainWindow : Window
         if (dialog.ShowDialog(this) == true) field.Text = dialog.FileName;
     }
 
-    private void ResultChanged(object sender, TextChangedEventArgs e) => UpdateResultActions();
+    private void ResultChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!updatingVoice)
+        {
+            voiceRevision++;
+            voiceDirty = true;
+        }
+        UpdateResultActions();
+    }
 
     private void UpdateResultActions()
     {
         bool hasResult = !string.IsNullOrWhiteSpace(Result?.Text);
-        bool enabled = hasResult && !busy && !videoBusy && !confirming;
+        bool enabled = hasResult && !busy && !confirming;
         ConfirmButton.IsEnabled = enabled;
-        RetryButton.IsEnabled = recordingFolder is not null && !busy && !videoBusy && !confirming;
+        RetryButton.IsEnabled = recordingFolder is not null && !busy && !confirming;
         CopyButton.IsEnabled = enabled;
         ClearButton.IsEnabled = enabled;
         SaveButton.IsEnabled = enabled;
@@ -383,15 +328,19 @@ public partial class MainWindow : Window
     private void UpdateOperationState()
     {
         UpdateRecordLabel();
-        RecordButton.IsEnabled = !videoBusy && !confirming && (!busy || capture is not null && !stopping);
-        ProviderPicker.IsEnabled = !busy && !videoBusy && !confirming;
+        RecordButton.IsEnabled = !confirming && (!busy || capture is not null && !stopping);
+        ProviderPicker.IsEnabled = !busy && !confirming;
         ApiKey.IsEnabled = ProviderPicker.IsEnabled;
         CloudModel.IsEnabled = ProviderPicker.IsEnabled;
-        TranscribeButton.IsEnabled = !busy && !videoBusy && !confirming;
         CancelVideoButton.IsEnabled = videoBusy;
         CancelVideoButton.Visibility = videoBusy ? Visibility.Visible : Visibility.Collapsed;
         TranscriptionProgressBar.Visibility = CancelVideoButton.Visibility;
-        VideoUrl.IsEnabled = !busy && !videoBusy && !confirming;
+        TranscribeButton.IsEnabled = !videoBusy;
+        VideoUrl.IsEnabled = !videoBusy;
+        MediaLanguage.IsEnabled = !videoBusy;
+        MediaTraditional.IsEnabled = !videoBusy;
+        VoiceCancel.Visibility = busy && capture is null ? Visibility.Visible : Visibility.Collapsed;
+        UpdateMediaActions();
         UpdateResultActions();
     }
 
@@ -420,6 +369,7 @@ public partial class MainWindow : Window
         try
         {
             File.WriteAllText(dialog.FileName, Result.Text, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            voiceDirty = false;
             SetStatus("已保存当前结果。");
         }
         catch (Exception ex) { SetStatus("保存失败：{0}", ex.Message); }
@@ -436,7 +386,7 @@ public partial class MainWindow : Window
     protected override void OnClosing(CancelEventArgs e)
     {
         base.OnClosing(e);
-        if (e.Cancel || (!busy && !videoBusy)) return;
+        if (e.Cancel || (!busy)) return;
         e.Cancel = true;
         closePending = true;
         StopCapture();
@@ -447,7 +397,9 @@ public partial class MainWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         closePending = true;
+        elapsedTimer.Stop();
         ClearRecording();
+        DeleteTemporaryFolder(mediaFolder);
         if (source is not null)
         {
             if (registered) DesktopInput.Unregister(source.Handle);
